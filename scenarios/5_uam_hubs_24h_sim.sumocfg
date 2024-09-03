@@ -1,6 +1,6 @@
 <configuration>
    <input>
-      <net-file value="5_uam_hubs_unzip_ingolstadt_24h.net.xml" />
+      <net-file value="5_uam_hubs_ingolstadt.net.xml.gz" />
       <route-files value="5_uam_hubs_ped.rou.xml,veh.rou.xml" />
       <additional-files value="5_uam_hubs_tlLogics_WAUT_2020-09-16_24h.add.xml, ingolstadt.poly.xml.gz" />
    </input>
