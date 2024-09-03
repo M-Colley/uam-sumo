@@ -715,7 +715,7 @@ def generate_start_config(sumo_binary: str, results_folder) -> list[str]:
     start_config.append("--step-length")
     start_config.append(str(config.step_length))
     start_config.append("--gui-settings-file")
-    start_config.append(os.path.join("scenarios/taxiTesting2", "taxiTesting2View.xml"))
+    start_config.append(os.path.join("defaultView.xml"))
 
     if config.outputFilesActive:
         if config.statsOutput:
