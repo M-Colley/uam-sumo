@@ -1,4 +1,10 @@
-# sumo-uam-2024
+# UAM-SUMO - Urban Air Mobility in [SUMO](https://www.eclipse.org/sumo/) 
+
+
+## Introduction
+
+TBD
+
 
 ## How to use
 
@@ -71,3 +77,5 @@ transitions are registered in my code:
 
 Currently, these are used for logging purposes, but can be extended with LLM decision-making if so desired.
 
+## Licenses
+- [SUMO](https://sumo.dlr.de/docs/Libraries_Licenses.html)
