@@ -1,0 +1,3 @@
+py uamTraCI.py --nogui --loop --uam_step_size 0.05 --uam_start_density 0.0 --uam_upper_bound 0.3 --scenario_path C:\Users\MI\PycharmProjects\sumo-uam-2024\scenarios\manhattan\2_uam_hubs_manhattan.sumocfg
+py uamTraCI.py --nogui --loop --uam_step_size 0.05 --uam_start_density 0.0 --uam_upper_bound 0.3 --scenario_path C:\Users\MI\PycharmProjects\sumo-uam-2024\scenarios\manhattan\3_uam_hubs_manhattan.sumocfg
+py uamTraCI.py --nogui --loop --uam_step_size 0.05 --uam_start_density 0.0 --uam_upper_bound 0.3 --scenario_path C:\Users\MI\PycharmProjects\sumo-uam-2024\scenarios\manhattan\5_uam_hubs_manhattan.sumocfg
