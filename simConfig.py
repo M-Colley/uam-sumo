@@ -5,14 +5,14 @@ results_folder_path = os.path.join("results")   # path where simulation results 
 
 scenarios = {
     "test": os.path.join("scenarios", "taxiTesting2", "taxiTesting2.sumocfg"),
-    "Ingolstadt": os.path.join("scenarios", "Ingolstadt", "simulation", "5_uam_hubs_24h_sim.sumocfg"),
+    "Ingolstadt": os.path.join("scenarios", "5_uam_hubs_24h_sim.sumocfg"),
     "Ulm": os.path.join("scenarios", "Ulm", "5_uam_hubs_osm.sumocfg"),
     "Manhattan": os.path.join("scenarios", "manhattan", "5_uam_hubs_manhattan.sumocfg"),
-    "disconnected": os.path.join("scenarios", "Ingolstadt", "simulation", "removed_connections.sumocfg")
+    "disconnected": os.path.join("scenarios", "removed_connections.sumocfg")
 }
 scenario = "Ingolstadt"
 
-no_gui = True                   # whether sumo should be run using sumo-gui or on command line
+no_gui = False                  # whether sumo should be run using sumo-gui or on command line
 step_length = 1                 # granularity of simulation. Defines the step length in seconds
 loop = False                    # whether the simulation should be run multiple times in a row, looping through densities
 exact_distance_calculation = False   # whether the exact distance should be calculated when determining the distance between an escooter to all other pedestrians on the same lane
