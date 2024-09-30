@@ -48,6 +48,7 @@ def get_options():
     """
     arg_parser = argparse.ArgumentParser()
     uam_group = arg_parser.add_argument_group("uam options")
+    micromobility_group = arg_parser.add_argument_group("micromobility options")
     loop_group = arg_parser.add_argument_group("loop options")
     arg_parser.add_argument("--nogui", action="store_true", default=False, help="run the commandline version of sumo")
     arg_parser.add_argument("-v", "--verbosity", dest="verbosity", type=str,
@@ -89,6 +90,14 @@ def get_options():
                                                             "vehicle has to wait for other potential passengers that want to fly to the same "
                                                             "destination until boarding the uam vehicle.")
 
+    micromobility_group.add_argument("--lateral_resolution", dest="lateral_resolution", type=float,
+                                     help="Default = " + str(
+                                         config.lateral_resolution) + "Defines the resolution in meters which divides a lane into one or more sublanes."
+                                                                      "For example if three bicycles should be able to ride side by side on a 3m wide lane,"
+                                                                      " the lateral resolution must not be higher than 1.0."
+                                                                      "It is recommended to set the lateral resolution to a value that divides the lane "
+                                                                      "width evenly to avoid artifacts from varying stripe width."
+                                                                      "The smaller this value is, the higher the running time.")
 
     loop_group.add_argument("-l", "--loop", action="store_true", dest="loop",
                             help="Default = " + str(
@@ -100,16 +109,35 @@ def get_options():
                                                         "Defines the step size for the density of uam users in the loop. "
                                                         "Value should be between 0.0 and 1.0 as float. "
                                                         "Setting this value to exactly 0.0 disables looping over av_density instead. ")
+    loop_group.add_argument("--mm_step_size", dest="mm_step_size", type=float,
+                            choices=FloatRange(0.0, 1.0),
+                            help="default = " + str(
+                                config.mm_step_size) + ". Only useful when the --loop option is set. "
+                                                       "Defines the step size for the density of micromobility users in the loop."
+                                                       "Value should be between 0.0 and 1.0 as float. "
+                                                       "Setting this value to exactly 0.0 disables looping over this variable instead.")
     loop_group.add_argument("--uam_start_density", dest="uam_start_density", type=float,
                             choices=FloatRange(0.0, 1.0),
                             help="default = " + str(config.uam_start_density) + ". "
                                                                                 "Only useful when combined with the --loop option. Defines the lower bound for the "
                                                                                 "used uam density in the loop. Value should be between 0.0 and 1.0 as float.")
+    loop_group.add_argument("--mm_start_density", dest="mm_start_density", type=float,
+                            choices=FloatRange(0.0, 1.0),
+                            help="default = " + str(config.mm_start_density) + ". "
+                                                                               "Only useful when combined with the --loop option. Defines the lower bound for the "
+                                                                               "used micromobility density in the loop. "
+                                                                               "Value should be between 0.0 and 1.0 as float.")
     loop_group.add_argument("--uam_upper_bound", dest="uam_upper_bound", type=float,
                             choices=FloatRange(0.0, 1.0),
                             help="default = " + str(config.uam_start_density) + ". "
                                                                                "Only useful when combined with the --loop option. Defines the upper bound for the "
                                                                                "used uam density in the loop. "
+                                                                               "Value should be between 0.0 and 1.0 as float.")
+    loop_group.add_argument("--mm_upper_bound", dest="mm_upper_bound", type=float,
+                            choices=FloatRange(0.0, 1.0),
+                            help="default = " + str(config.mm_start_density) + ". "
+                                                                               "Only useful when combined with the --loop option. Defines the upper bound for the "
+                                                                               "used micromobility density in the loop. "
                                                                                "Value should be between 0.0 and 1.0 as float.")
 
     args = arg_parser.parse_args()
@@ -151,7 +179,7 @@ def plan_dispatch(new_reservation, reservation_dict, step, uam_log_writer, waiti
                  round(traci.person.getPosition(person_id)[0]), round(traci.person.getPosition(person_id)[1]),
                  uam_log_dict[person_id]['routeStartX'], uam_log_dict[person_id]['routeStartY'],
                  uam_log_dict[person_id]['routeDestX'], uam_log_dict[person_id]['routeDestY'],
-                 uam_log_dict[person_id]['originalVehicleId'], config.uam_density,
+                 uam_log_dict[person_id]['originalVehicleId'], config.uam_density, config.mm_density,
                  config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                  config.uam_hub_count]
         uam_log_writer.writerow(entry)
@@ -213,6 +241,154 @@ def get_best_uam_vehicle(from_edge, parking_area_edges, starting_coordinate):
         return "error"
 
 
+# MM
+def select_escooter_lane(escooters: set[str], mm_log_writer, mm_log_dict, step):
+    for escooter in escooters:
+        current_lane = traci.vehicle.getLaneID(escooter)
+        current_edge = traci.lane.getEdgeID(current_lane)
+        lane_count = traci.edge.getLaneNumber(current_edge)
+        # nothing to do if only one lane exists
+        if lane_count == 1:
+            continue
+        lane_information = {}
+        bicycle_only_exists = False
+        for lane_index in range(lane_count):
+            lane_id = current_edge + '_' + str(lane_index)
+            allowed_veh_types = traci.lane.getAllowed(lane_id)
+            # check if bicycles are in allowed vehicles at all
+            if "scooter" not in allowed_veh_types:
+                lane_information[lane_index] = {"lane_type": "prohibited",
+                                                "occupancy": 1}
+                continue
+            # check if lane bicycle only lane
+            if ("bicycle" in allowed_veh_types) and ("passenger" not in allowed_veh_types) and (
+                    "pedestrian" not in allowed_veh_types):
+                bicycle_only_exists = True
+                # change to the bicycle only lane
+                traci.vehicle.changeLane(escooter, lane_index, config.escooter_lane_change_duration)
+                try:
+                    entry = [datetime.now(), step, config.scenario, escooter,
+                             round(traci.vehicle.getPosition(escooter)[0]),
+                             round(traci.vehicle.getPosition(escooter)[1]),
+                             "bicycle", round(traci.lane.getLastStepOccupancy(lane_id), 4),
+                             round(traci.lane.getLastStepMeanSpeed(lane_id), 4),
+                             round(traci.lane.getLastStepLength(lane_id), 4),
+                             mm_log_dict[escooter]['routeStartX'],
+                             mm_log_dict[escooter]['routeStartY'],
+                             mm_log_dict[escooter]['routeDestX'],
+                             mm_log_dict[escooter]['routeDestY'],
+                             mm_log_dict[escooter]['originalVehicleId'],
+                             mm_log_dict[escooter]['originalVehicleType'], config.uam_density,
+                             config.mm_density,
+                             config.escooter_lane_change_duration, config.escooter_lane_find_frequency,
+                             config.escooter_sidewalk_occupancy_threshold, config.escooter_road_occupancy_threshold,
+                             config.escooter_road_speed_threshold, config.escooter_road_vehicle_length_threshold,
+                             "laneSelection"]
+                    mm_log_writer.writerow(entry)
+                    continue
+                except:
+                    print("Error: mm_log.csv row not written for escooter lane selection (bicycle).")
+            # check if lane is a sidewalk
+            elif ("pedestrian" in allowed_veh_types) and (
+                    "passenger" not in allowed_veh_types) and ("bicycle" not in allowed_veh_types):
+                gather_lane_information(current_edge, lane_id, lane_index, lane_information, "sidewalk")
+
+            else:  # neither sidewalk nor bicycle only lane, but allows escooters
+                gather_lane_information(current_edge, lane_id, lane_index, lane_information, "standard")
+        if bicycle_only_exists:
+            # already changed lane to bicycle lane -> nothing to do
+            continue
+        else:
+            best_lane_index = select_preferred_lane(lane_information)
+            if best_lane_index != -1:  # avoid changing to prohibited lanes
+                try:
+                    traci.vehicle.changeLane(escooter, best_lane_index, config.escooter_lane_change_duration)
+                    print(escooter + " changed lane to index " + str(best_lane_index))
+
+                except:
+                    print(escooter + " was unable to changed lane to index " + str(best_lane_index) + ".")
+                    continue
+                try:
+                    entry = [datetime.now(), step, config.scenario, escooter,
+                             round(traci.vehicle.getPosition(escooter)[0]),
+                             round(traci.vehicle.getPosition(escooter)[1]),
+                             lane_information[best_lane_index]["lane_type"],
+                             round(lane_information[best_lane_index]["occupancy"], 4),
+                             round(lane_information[best_lane_index]["mean_speed"], 4),
+                             round(lane_information[best_lane_index]["mean_length"], 4),
+                             mm_log_dict[escooter]['routeStartX'],
+                             mm_log_dict[escooter]['routeStartY'],
+                             mm_log_dict[escooter]['routeDestX'],
+                             mm_log_dict[escooter]['routeDestY'],
+                             mm_log_dict[escooter]['originalVehicleId'],
+                             mm_log_dict[escooter]['originalVehicleType'], config.uam_density,
+                             config.mm_density,
+                             config.escooter_lane_change_duration, config.escooter_lane_find_frequency,
+                             config.escooter_sidewalk_occupancy_threshold, config.escooter_road_occupancy_threshold,
+                             config.escooter_road_speed_threshold, config.escooter_road_vehicle_length_threshold,
+                             "laneSelection"]
+                    mm_log_writer.writerow(entry)
+                    continue
+                except:
+                    print("Error: mm_log.csv row not written for escooter lane selection.")
+
+
+# MM
+def select_preferred_lane(lane_information: dict) -> int:
+    highest_lane_rating = 0
+    best_lane_index = -1
+    for lane_index in lane_information:
+        lane_rating = calculate_lane_rating(lane_information[lane_index])
+        print(str(lane_index) + ": " + str(lane_rating))
+        if lane_rating > highest_lane_rating:
+            highest_lane_rating = lane_rating
+            best_lane_index = lane_index
+    return best_lane_index
+
+# MM
+def calculate_lane_rating(lane_information_entry: dict) -> float:
+    if lane_information_entry["lane_type"] == "sidewalk":
+        if lane_information_entry["occupancy"] <= config.escooter_sidewalk_occupancy_threshold:
+            # low occupancy sidewalk
+            return 1
+        else:
+            # high occupancy sidewalk
+            return 0.6
+    elif lane_information_entry["lane_type"] == "standard":
+        if lane_information_entry["occupancy"] <= config.escooter_road_occupancy_threshold:
+            # low occupancy road
+            return 0.9
+        if lane_information_entry["mean_speed"] <= config.escooter_road_speed_threshold:
+            if lane_information_entry["mean_length"] <= config.escooter_road_vehicle_length_threshold:
+                # high occupancy road, slow moving, small vehicles
+                return 0.8
+            else:
+                # high occupancy road, slow moving, large vehicles
+                return 0.7
+        else:
+            if lane_information_entry["mean_length"] <= config.escooter_road_vehicle_length_threshold:
+                # high occupancy road, fast moving, small vehicles
+                return 0.5
+            else:
+                # high occupancy road, fast moving, large vehicles
+                return 0.4
+    else:
+        # prohibited road or unmarked scenario
+        return -1.0
+
+
+# MM
+def gather_lane_information(edge_id: str, lane_id: str, lane_index: int, lane_information: dict, lane_type: str):
+    if lane_type == "sidewalk":
+        occupancy_rate = len(traci.edge.getLastStepPersonIDs(edge_id)) / traci.lane.getLength(lane_id)
+    else:
+        occupancy_rate = traci.lane.getLastStepOccupancy(lane_id)
+    mean_speed = traci.lane.getLastStepMeanSpeed(lane_id)
+    mean_length = traci.lane.getLastStepLength(lane_id)
+    lane_information[lane_index] = {"lane_type": lane_type,
+                                    "occupancy": occupancy_rate,
+                                    "mean_speed": mean_speed,
+                                    "mean_length": mean_length}
 
 # UAM
 def create_uam_taxis(parking_area_edges):
@@ -236,6 +412,88 @@ def recolour_uam_taxis():
         traci.vehicle.setColor(on_route_taxi, (0, 255, 255, 255))
     for active_taxi in traci.vehicle.getTaxiFleet(2):
         traci.vehicle.setColor(active_taxi, (255, 0, 0, 255))
+
+# MM
+def create_escooters(new_vehicles: set[str], new_pedestrians: set[str], step, mm_log_writer, mm_log_dict) -> set[str]:
+    new_escooters = set()
+    for vehicle in new_vehicles:  # adjust all newly added vehicles
+        if (traci.vehicletype.getVehicleClass(traci.vehicle.getTypeID(vehicle)) in config.conversion_vClasses) and (
+                random.random() <= config.mm_density):  # with a chance of <mm_density>
+            new_id = vehicle + "_escooter"
+            route = traci.vehicle.getRoute(vehicle)  # get route of vehicle. We need 1st and last edge
+            start_edge = route[0]
+            if not allowed_on_edge("scooter", start_edge):
+                start_edge = find_alternative_edge("scooter", start_edge)
+                if start_edge == "":  # no alternative found in config.alternative_edge_radius
+                    if config.verbosity >= Verbosity.SPARSE:
+                        print("Could not find an alternative start edge for " + vehicle + ". Skipping.")
+                        continue
+            dest_edge = route[-1]
+            if not allowed_on_edge("scooter", dest_edge):
+                dest_edge = find_alternative_edge("scooter", dest_edge)
+                if dest_edge == "":  # no alternative found in config.alternative_edge_radius
+                    if config.verbosity >= Verbosity.SPARSE:
+                        print("Could not find an alternative destination edge for " + vehicle + ". Skipping.")
+                        continue
+
+            start_coords = traci.junction.getPosition(traci.edge.getFromJunction(start_edge))
+            dest_coords = traci.junction.getPosition(traci.edge.getFromJunction(dest_edge))
+
+            stage = traci.simulation.findRoute(start_edge, dest_edge, "escooter")
+
+            if not stage.edges:  # no route possible, skip
+                if config.verbosity >= Verbosity.VERBOSE:
+                    print("Could not find a route from \"" + start_edge + "\" to \"" + dest_edge + "\". Skipping.")
+                try:
+                    entry = [datetime.now(), step, config.scenario, new_id, "NULL", "NULL", "NULL", "NULL", "NULL",
+                             "NULL",
+                             round(start_coords[0]),
+                             round(start_coords[1]), round(dest_coords[0]), round(dest_coords[1]), vehicle,
+                             traci.vehicle.getTypeID(vehicle),
+                             config.uam_density, config.mm_density, config.escooter_lane_change_duration,
+                             config.escooter_lane_find_frequency, config.escooter_sidewalk_occupancy_threshold,
+                             config.escooter_road_occupancy_threshold,
+                             config.escooter_road_speed_threshold, config.escooter_road_vehicle_length_threshold,
+                             "noRoute"]
+                    mm_log_writer.writerow(entry)
+                    continue
+                except:
+                    print("Error: uam_log.csv row not written at \"Could not find a route\"")
+                    continue
+
+            route = stage.edges
+            route_id = vehicle + "_escooter_route"
+            traci.route.add(route_id, route)
+
+            traci.vehicle.add(new_id, route_id, "escooter")
+            new_escooters.add(new_id)
+            mm_log_dict[new_id] = {'routeStartX': round(start_coords[0]),
+                                   'routeStartY': round(start_coords[1]),
+                                   'routeDestX': round(dest_coords[0]),
+                                   'routeDestY': round(dest_coords[1]),
+                                   'originalVehicleId': vehicle,
+                                   'originalVehicleType': traci.vehicle.getTypeID(vehicle)}
+
+            if config.verbosity >= Verbosity.SPARSE:
+                print("Removed \"" + vehicle + "\" and added \"" + new_id + "\" as a new escooter.\n"
+                                                                            "Traveling from \"" + start_edge + "\" to \"" + dest_edge + "\".")
+            try:
+                entry = [datetime.now(), step, config.scenario, new_id, round(traci.vehicle.getPosition(vehicle)[0]),
+                         round(traci.vehicle.getPosition(vehicle)[1]), "NULL", "NULL", "NULL", "NULL",
+                         round(start_coords[0]),
+                         round(start_coords[1]), round(dest_coords[0]), round(dest_coords[1]), vehicle,
+                         traci.vehicle.getTypeID(vehicle), config.uam_density, config.mm_density,
+                         config.escooter_lane_change_duration, config.escooter_lane_find_frequency,
+                         config.escooter_sidewalk_occupancy_threshold, config.escooter_road_occupancy_threshold,
+                         config.escooter_road_speed_threshold,
+                         config.escooter_road_vehicle_length_threshold, "new"]
+                mm_log_writer.writerow(entry)
+            except:
+                print("Error: mm_log.csv row not written at \"Creating new escooter\"")
+
+            traci.vehicle.remove(vehicle)
+
+    return new_escooters
 
 # UAM
 def create_uam_customers(new_vehicles: set[str], step, uam_log_writer, uam_customers: set[str], uam_log_dict) -> set[
@@ -280,7 +538,7 @@ def create_uam_customers(new_vehicles: set[str], step, uam_log_writer, uam_custo
                 try:
                     entry = [datetime.now(), step, config.scenario, new_id, "NULL", "noRoute",
                              "NULL", "NULL", round(start_coords[0]), round(start_coords[1]), round(dest_coords[0]),
-                             round(dest_coords[1]), vehicle, config.uam_density,
+                             round(dest_coords[1]), vehicle, config.uam_density, config.mm_density,
                              config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                              config.uam_hub_count]
                     uam_log_writer.writerow(entry)
@@ -310,7 +568,7 @@ def create_uam_customers(new_vehicles: set[str], step, uam_log_writer, uam_custo
                              round(traci.person.getPosition(new_id)[0]), round(traci.person.getPosition(new_id)[1]),
                              round(start_coords[0]), round(start_coords[1]), round(dest_coords[0]),
                              round(dest_coords[1]),
-                             vehicle, config.uam_density,
+                             vehicle, config.uam_density, config.mm_density,
                              config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                              config.uam_hub_count]
                     uam_log_writer.writerow(entry)
@@ -340,7 +598,7 @@ def create_uam_customers(new_vehicles: set[str], step, uam_log_writer, uam_custo
                              round(traci.person.getPosition(new_id)[0]), round(traci.person.getPosition(new_id)[1]),
                              round(start_coords[0]), round(start_coords[1]), round(dest_coords[0]),
                              round(dest_coords[1]),
-                             vehicle, config.uam_density,
+                             vehicle, config.uam_density, config.mm_density,
                              config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                              config.uam_hub_count]
                     uam_log_writer.writerow(entry)
@@ -390,7 +648,7 @@ def log_started_flights(uam_log_writer, step, waiting_peds: set[str], flying_ped
                          round(traci.person.getPosition(waiting_customer)[1]),
                          uam_log_dict[waiting_customer]['routeStartX'], uam_log_dict[waiting_customer]['routeStartY'],
                          uam_log_dict[waiting_customer]['routeDestX'], uam_log_dict[waiting_customer]['routeDestY'],
-                         uam_log_dict[waiting_customer]['originalVehicleId'], config.uam_density,
+                         uam_log_dict[waiting_customer]['originalVehicleId'], config.uam_density, config.mm_density,
                          config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                          config.uam_hub_count]
                 uam_log_writer.writerow(entry)
@@ -412,7 +670,7 @@ def log_finished_flights(uam_log_writer, step, flying_peds: set[str], uam_log_di
                          round(traci.person.getPosition(flying_customer)[1]),
                          uam_log_dict[flying_customer]['routeStartX'], uam_log_dict[flying_customer]['routeStartY'],
                          uam_log_dict[flying_customer]['routeDestX'], uam_log_dict[flying_customer]['routeDestY'],
-                         uam_log_dict[flying_customer]['originalVehicleId'], config.uam_density,
+                         uam_log_dict[flying_customer]['originalVehicleId'], config.uam_density, config.mm_density,
                          config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                          config.uam_hub_count]
                 uam_log_writer.writerow(entry)
@@ -430,13 +688,31 @@ def log_terminated_customers(uam_log_writer, step, terminated_peds: set[str], ua
                      "NULL", "NULL",
                      uam_log_dict[terminated_ped]['routeStartX'], uam_log_dict[terminated_ped]['routeStartY'],
                      uam_log_dict[terminated_ped]['routeDestX'], uam_log_dict[terminated_ped]['routeDestY'],
-                     uam_log_dict[terminated_ped]['originalVehicleId'], config.uam_density,
+                     uam_log_dict[terminated_ped]['originalVehicleId'], config.uam_density, config.mm_density,
                      config.uam_vehicles_per_hub, config.uam_vehicle_capacity, config.group_finding_time,
                      config.uam_hub_count]
             uam_log_writer.writerow(entry)
             continue
         except:
             print("Error: uam_log.csv row not written for terminated customer.")
+
+# MM
+def log_terminated_escooters(mm_log_writer, step, terminated_escooters: set[str], mm_log_dict):
+    for terminated_escooter in terminated_escooters:
+        try:
+            entry = [datetime.now(), step, config.scenario, terminated_escooter, "NULL", "NULL", "NULL", "NULL", "NULL",
+                     "NULL",
+                     mm_log_dict[terminated_escooter]['routeStartX'], mm_log_dict[terminated_escooter]['routeStartY'],
+                     mm_log_dict[terminated_escooter]['routeDestX'], mm_log_dict[terminated_escooter]['routeDestY'],
+                     mm_log_dict[terminated_escooter]['originalVehicleId'],
+                     mm_log_dict[terminated_escooter]['originalVehicleType'], config.uam_density, config.mm_density,
+                     config.escooter_lane_change_duration, config.escooter_lane_find_frequency,
+                     config.escooter_sidewalk_occupancy_threshold, config.escooter_road_occupancy_threshold,
+                     config.escooter_road_speed_threshold, config.escooter_road_vehicle_length_threshold, "terminated"]
+            mm_log_writer.writerow(entry)
+            continue
+        except:
+            print("Error: mm_log.csv row not written for terminated escooter.")
 
 # UAM
 def log_taxis(uam_taxi_log_writer, step):
@@ -465,6 +741,43 @@ def log_taxis(uam_taxi_log_writer, step):
         except:
             print("Error: uam_log.csv row not written for UAM taxi \"" + taxi + "\".")
 
+# MM
+def log_close_escooter_ped_encounters(escooters, step, ped_mm_log_writer, mm_log_dict):
+    for escooter in escooters:
+        lane_id = traci.vehicle.getLaneID(escooter)
+        edge_id = traci.lane.getEdgeID(lane_id)
+        escooter_point = traci.vehicle.getPosition(escooter)
+        peds = traci.edge.getLastStepPersonIDs(edge_id)
+        for ped in peds:
+            if not traci.person.getLaneID(ped) == lane_id:  # person not on same lane as escooter
+                continue
+            ped_point = traci.person.getPosition(ped)
+            distance = math.dist(escooter_point, ped_point)
+            if distance <= config.log_escooter_ped_distance_threshold:
+                try:
+                    entry = [datetime.now(), step, config.scenario, escooter,
+                             round(escooter_point[0], 4),
+                             round(escooter_point[1], 4),
+                             ped, round(ped_point[0], 4), round(ped_point[1], 4), distance,
+                             round(traci.lane.getLastStepOccupancy(lane_id), 4),
+                             round(traci.lane.getLastStepMeanSpeed(lane_id), 4),
+                             round(traci.lane.getLastStepLength(lane_id), 4),
+                             mm_log_dict[escooter]['routeStartX'],
+                             mm_log_dict[escooter]['routeStartY'],
+                             mm_log_dict[escooter]['routeDestX'],
+                             mm_log_dict[escooter]['routeDestY'],
+                             mm_log_dict[escooter]['originalVehicleId'],
+                             mm_log_dict[escooter]['originalVehicleType'], config.uam_density,
+                             config.mm_density,
+                             config.escooter_lane_change_duration, config.escooter_lane_find_frequency,
+                             config.escooter_sidewalk_occupancy_threshold, config.escooter_road_occupancy_threshold,
+                             config.escooter_road_speed_threshold, config.escooter_road_vehicle_length_threshold,
+                             config.log_escooter_ped_distance_threshold]
+                    ped_mm_log_writer.writerow(entry)
+                    continue
+                except:
+                    print("Error: mm-encounter-log.csv row not written for close escooter and pedestrian encounter.")
+
 
 # UAM
 def count_uam_hubs():
@@ -486,12 +799,14 @@ def run():
 
     step = 0
     reservation_dict = {}
+    escooters = set()
     uam_customers = set()
     last_step_vehicles = set()
     last_step_peds = set()
     waiting_peds = set()
     flying_peds = set()
     uam_log_dict = {}
+    mm_log_dict = {}
 
     uam_ped_log_file_name = "uam-log-{}.csv".format(os.path.basename(results_folder))
     uam_ped_log_file_path = os.path.join(results_folder, uam_ped_log_file_name)
@@ -500,7 +815,7 @@ def run():
     uam_ped_log_writer = csv.writer(uam_ped_log_file, delimiter=';')
     uam_ped_log_header = ['timestamp', 'step', 'scenario', 'pedestrianID', 'vehicleID', 'state', 'x', 'y',
                           'routeStartX', 'routeStartY', 'routeDestX', 'routeDestY', 'originalVehicleId', 'uamDensity',
-                          'uam_vehicles_per_hub', 'uam_vehicle_capacity', 'group_finding_time',
+                          'mmDensity', 'uam_vehicles_per_hub', 'uam_vehicle_capacity', 'group_finding_time',
                           'uam_hub_count']
     uam_ped_log_writer.writerow(uam_ped_log_header)
 
@@ -513,6 +828,31 @@ def run():
                            'uam_hub_count']
     uam_taxi_log_writer.writerow(uam_taxi_log_header)
 
+    mm_log_file_name = "mm-log-{}.csv".format(os.path.basename(results_folder))
+    mm_log_file_path = os.path.join(results_folder, mm_log_file_name)
+    mm_log_file = open(mm_log_file_path, 'w', newline='')
+
+    mm_log_writer = csv.writer(mm_log_file, delimiter=';')
+    mm_log_header = ['timestamp', 'step', 'scenario', 'escooterID', 'x', 'y', 'laneType', 'laneOccupancy',
+                     'laneMeanSpeed', 'laneMeanVehicleLength', 'routeStartX', 'routeStartY',
+                     'routeDestX', 'routeDestY', 'originalId', 'originalVType', 'uamDensity', 'mmDensity',
+                     'lane_change_duration', 'lane_find_frequency', 'sidewalk_occupancy_threshold',
+                     'road_occupancy_threshold', 'road_speed_threshold', 'road_vehicle_length_threshold', 'event']
+    mm_log_writer.writerow(mm_log_header)
+
+    ped_mm_log_file_name = "mm-encounter-log-{}.csv".format(os.path.basename(results_folder))
+    ped_mm_log_file_path = os.path.join(results_folder, ped_mm_log_file_name)
+    ped_mm_log_file = open(ped_mm_log_file_path, 'w', newline='')
+
+    ped_mm_log_writer = csv.writer(ped_mm_log_file, delimiter=';')
+    ped_mm_log_header = ['timestamp', 'step', 'scenario', 'escooterID', 'escooter_x', 'escooter_y', 'pedID',
+                         'ped_x', 'ped_y', 'distance', 'laneOccupancy',
+                         'laneMeanSpeed', 'laneMeanVehicleLength', 'routeStartX', 'routeStartY',
+                         'routeDestX', 'routeDestY', 'originalId', 'originalVType', 'uamDensity', 'mmDensity',
+                         'lane_change_duration', 'lane_find_frequency', 'sidewalk_occupancy_threshold',
+                         'road_occupancy_threshold', 'road_speed_threshold', 'road_vehicle_length_threshold',
+                         'log_escooter_ped_distance_threshold']
+    ped_mm_log_writer.writerow(ped_mm_log_header)
 
     # start of the main simulation loop
     while traci.simulation.getTime() <= config.seconds_to_simulate:
@@ -530,14 +870,20 @@ def run():
         terminated_peds = last_step_peds - peds
 
         terminated_uam_customers = set.intersection(terminated_peds, uam_customers)
+        terminated_escooters = set.intersection(terminated_vehicles, escooters)
 
         log_terminated_customers(uam_ped_log_writer, step, terminated_uam_customers, uam_log_dict)
+        log_terminated_escooters(mm_log_writer, step, terminated_escooters, mm_log_dict)
 
         # clean up uam log dict
         for terminated_uam_customer in terminated_uam_customers:
             if terminated_uam_customer in uam_log_dict:
                 del uam_log_dict[terminated_uam_customer]
 
+        # clean up mm log dict
+        for terminated_escooter in terminated_escooters:
+            if terminated_escooter in mm_log_dict:
+                del mm_log_dict[terminated_escooter]
 
         # clean up flying peds to remove rare crash
         flying_peds -= terminated_peds
@@ -548,6 +894,27 @@ def run():
         new_pedestrians = peds - last_step_peds
 
         new_vehicles -= create_uam_customers(new_vehicles, step, uam_ped_log_writer, uam_customers, uam_log_dict)
+
+        # remove terminated escooters from list of escooters
+        escooters = escooters - terminated_vehicles
+
+        # every x seconds look for the best lane for each escooter and change to that
+        if step % config.escooter_lane_find_frequency == 0:
+            select_escooter_lane(escooters, mm_log_writer, mm_log_dict, step)
+
+        if config.escooter_ped_distance_output:
+            log_close_escooter_ped_encounters(escooters, step, ped_mm_log_writer, mm_log_dict)
+
+        # TODO: to support e-scooter added from route.xml (i.e., when using traffic demand generation) --> CHECK
+        # Loop through each vehicle in new_vehicles
+        for vehicle in new_vehicles:
+            # Check if the vehicle type class is 'scooter'
+            if traci.vehicletype.getVehicleClass(traci.vehicle.getTypeID(vehicle)) == "scooter":
+                # Add vehicle to the escooter list if it is a scooter
+                escooter.append(vehicle)
+
+        new_escooters = create_escooters(new_vehicles, new_pedestrians, step, mm_log_writer, mm_log_dict)
+        escooters.update(new_escooters)
 
         increment_reservation_waiting_time(reservation_dict)
         check_for_new_reservations(reservation_dict, step, uam_ped_log_writer, waiting_peds, uam_log_dict)
@@ -568,6 +935,8 @@ def run():
     traci.close()
     uam_ped_log_file.close()
     uam_taxi_log_file.close()
+    mm_log_file.close()
+    ped_mm_log_file.close()
     sys.stdout.flush()
 
 # both
@@ -676,7 +1045,7 @@ def generate_base_results_folder(path: str):
 def get_new_results_folder():
     data_output_path = os.path.join(config.results_folder_path,
                                     "{}-uam{:.3f}-mm{:.3f}-{}".format(config.scenario, config.uam_density,
-                                                                     
+                                                                      config.mm_density,
                                                                       datetime.now().strftime("%Y%m%d-%H%M%S")))
 
     if not os.path.exists(data_output_path):
@@ -722,15 +1091,22 @@ def process_options():
         config.uam_vehicle_capacity = options.uam_vehicle_capacity
     if options.group_finding_time is not None:
         config.group_finding_time = options.group_finding_time
-    #if options.lateral_resolution is not None:
-    #    config.lateral_resolution = options.lateral_resolution
+    if options.lateral_resolution is not None:
+        config.lateral_resolution = options.lateral_resolution
     if options.uam_upper_bound is not None:
         config.uam_upper_bound = options.uam_upper_bound
+    if options.mm_upper_bound is not None:
+        config.mm_upper_bound = options.mm_upper_bound
     if options.uam_step_size is not None:
         config.uam_step_size = options.uam_step_size
+    if options.mm_step_size is not None:
+        config.mm_step_size = options.mm_step_size
     if options.uam_start_density is not None:
         config.uam_density = options.uam_start_density
         config.uam_start_density = options.uam_start_density
+    if options.mm_start_density is not None:
+        config.mm_density = options.mm_start_density
+        config.mm_start_density = options.mm_start_density
     if options.nogui is not None:
         config.no_gui = options.nogui
     if options.scenario is not None:
@@ -773,18 +1149,25 @@ if __name__ == '__main__':
         # traci starts sumo as a subprocess and then this script connects and runs
         traci.start(traci_start_config)
         run()
-    else:  # run multiple simulations in a row, looping through uam density
-        while config.uam_density <= config.uam_upper_bound:
-            print("uam_density: " + str(config.uam_density) + ", uam_upper_bound: " + str(
-                config.uam_upper_bound) + ", uam_step_size: " + str(config.uam_step_size))
-            if config.uam_density > 1.0:  # we can't convert over 100% of vehicles to alternatives
+    else:  # run multiple simulations in a row, looping through uam and mm density
+        while config.mm_density <= config.mm_upper_bound:
+            while config.uam_density <= config.uam_upper_bound:
+                print("uam_density: " + str(config.uam_density) + ", mm_density: " + str(
+                    config.mm_density) + ", uam_upper_bound: " + str(
+                    config.uam_upper_bound) + ", mm_upper_bound: " + str(
+                    config.mm_upper_bound) + ", uam_step_size: " + str(config.uam_step_size) + ", mm_step_size: " + str(
+                    config.mm_step_size))
+                if config.uam_density + config.mm_density > 1.0:  # we can't convert over 100% of vehicles to alternatives
+                    break
+                results_folder = get_new_results_folder()
+                traci_start_config = generate_start_config(sumoBinary, results_folder)
+                # traci starts sumo as a subprocess and then this script connects and runs
+                traci.start(traci_start_config)
+                run()
+                if config.uam_step_size == 0.0:
+                    break
+                config.uam_density += config.uam_step_size
+            config.uam_density = config.uam_start_density
+            if config.mm_step_size == 0.0:
                 break
-            results_folder = get_new_results_folder()
-            traci_start_config = generate_start_config(sumoBinary, results_folder)
-            # traci starts sumo as a subprocess and then this script connects and runs
-            traci.start(traci_start_config)
-            run()
-            if config.uam_step_size == 0.0:
-                break
-            config.uam_density += config.uam_step_size
-        config.uam_density = config.uam_start_density
+            config.mm_density += config.mm_step_size

@@ -286,7 +286,7 @@ def disallow_taxis(net_file, out_net_file):
 def add_uam_taxi_vclass(route_file, out_route_file):
     tree = ET.parse(route_file)
     root = tree.getroot()
-    uam_taxi = ET.Element('vType', {    # TODO: width, height, length
+    uam_taxi = ET.Element('vType', {    # TODO: width, height, length; add behind aircraft: 'width': str(config.uam_taxi_width), etc
         'id': "uamtaxi",
         'vClass': "taxi",
         'guiShape': "aircraft",
@@ -424,6 +424,12 @@ def create_reverse_directions(net_file, out_net_file, junction_ids):
                      '-e', edge_patch,
                      '-x', con_patch,
                      '-o', out_net_file])
+
+    if os.path.exists(con_patch):
+        os.remove(con_patch)
+    else:
+        print(f"{con_patch} does not exist.")
+
     return reverse_edge_ids
 
 
@@ -493,6 +499,11 @@ def connect_to_network(net_file, out_file_path, junction_ids, coordinates):
                      '-e', edge_patch,
                      '-o', out_file_path])
 
+    if os.path.exists(edge_patch):
+        os.remove(edge_patch)
+    else:
+        print(f"{edge_patch} does not exist.")
+
 
 def generate_hubs(coordinates: list[(float, float)]):
     sumocfg_path = os.path.normpath(options.file_path)
@@ -503,7 +514,7 @@ def generate_hubs(coordinates: list[(float, float)]):
     route_files = ET.parse(sumocfg_path).getroot().find(".//route-files").get("value").split("/")[0].split(",")
     add_files = ET.parse(sumocfg_path).getroot().find(".//additional-files").get("value").split("/")[0].split(",")
 
-    route_path = os.path.join(os.path.dirname(sumocfg_path), route_files[0])    # TODO: maybe we want another route file?
+    route_path = os.path.join(os.path.dirname(sumocfg_path), route_files[0])
     add_path = os.path.join(os.path.dirname(sumocfg_path), add_files[0])
 
     if not (os.path.isfile(sumocfg_path)):

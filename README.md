@@ -1,16 +1,23 @@
-# UAM-SUMO - Urban Air Mobility in [SUMO](https://www.eclipse.org/sumo/) 
+# Urban Air Mobility in SUMO
 
+## Added Features
 
-## Introduction
-
-TBD
-
+- Script to automatically create Urban Air Mobility hubs
+  - Given a valid sumocfg and a list of coordinates, we automatically generate UAM hubs at those coordinates
+  - All hubs are directly connected to each other, without any interaction with the normal road network
+  - Each hub is reachable for pedestrians in the simulation by foot
+  - We added a custom Air Taxi vehicle type, extending SUMO's taxi. Relevant parameters, such as its person capacity, maximum speed and emission class can be adjusted
+  - The custom Air Taxis, called uamtaxi, automatically select the best UAM hub to return to, after delivering their customer. The hub selection parameters are also adjustable
+- Addition of a hub based Air Taxi service
+  - An adjustable percentage of vehicles in the simulation get converted to pedestrians, trying to reach their destination by using the Air Taxi service
+  - Air Taxis start their flight either when the taxi reaches maximum capacity, or a pedestrian has waited a configurable amount of time
+- Extensive logging for scientific studies
 
 ## How to use
 
 ### Prerequisites
 
-- sumo installed (requires version released on 01.08.2024 or newer, 1.20 contains a problem that was fixed later on)
+- sumo installed (requires version released on 01.08.2024 or newer, 1.20 contains a bug that was fixed later)
 - rtree installed (see requirements.txt)
 - python installed
 
@@ -24,6 +31,7 @@ TBD
 Keep in mind that the specified coordinates should not be further apart from all others, than specified in ``uamHubConfig.py``. Hubs are only connected when they are within the `uam_hub_connection_radius` of another UAM hub.
 
 Many UAM hub specific variables can be configured in ``uamHubConfig.py`` to adjust the creation of the UAM hubs. These changes are only applied upon calling `createUamHubs.py` anew.
+
 
 ### Running the simulation
 
@@ -77,5 +85,37 @@ transitions are registered in my code:
 
 Currently, these are used for logging purposes, but can be extended with LLM decision-making if so desired.
 
-## Licenses
-- [SUMO](https://sumo.dlr.de/docs/Libraries_Licenses.html)
+## Results after a simulation
+
+After every simulation, a new folder inside the 'results' directory will be created in which you can find several result files:
+- uam-log.csv (logged every stage change of UAM customers):
+  - timestamp: date
+  - step: integer
+  - scenario: string
+  - pedestrianID (ID of newly created UAM customer): string
+  - vehicleID (ID of vehicle if aboard one): string
+  - state: 'noRoute': no valid route could be found, 'onlyWalking': using an Air Taxi is slower than walking, 'walking', 'waiting', 'flying', 'terminated': UAM customer left the simulation
+  - x: integer
+  - y: integer
+  - routeStartX (original starting point): integer
+  - routeStartY (original starting point): integer
+  - routeDestX: integer
+  - routeDestY: integer
+  - originalVehicleID: string
+  - uamDensity (percentage of vehicles converted to UAM customers): float
+  - uam_vehicles_per_hub (initial Air Taxi count at each hub): integer
+  - uam_vehicle_capacity: integer
+  - group_finding_time: integer
+  - uam_hub_count (amount of UAM hubs identified in the simulation): integer
+- uam-taxi-log.csv (logged the state of Air Taxis in every step)
+  - timestamp: date
+  - step: integer
+  - scenario: string
+  - vehicleID: string
+  - state:
+  - x: integer
+  - y: integer
+  - pedCount (amount of customers aboard the Air Taxi): integer
+  - customerIds: list(string)
+  - uamHubCount (amount of UAM hubs identified in the simulation): integer
+  

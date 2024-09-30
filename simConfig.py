@@ -5,10 +5,10 @@ results_folder_path = os.path.join("results")   # path where simulation results 
 
 scenarios = {
     "test": os.path.join("scenarios", "taxiTesting2", "taxiTesting2.sumocfg"),
-    "Ingolstadt": os.path.join("scenarios", "5_uam_hubs_24h_sim.sumocfg"),
+    "Ingolstadt": os.path.join("scenarios", "Ingolstadt", "simulation", "scooters_5_uam_hubs_24h_sim.sumocfg"),
     "Ulm": os.path.join("scenarios", "Ulm", "5_uam_hubs_osm.sumocfg"),
     "Manhattan": os.path.join("scenarios", "manhattan", "5_uam_hubs_manhattan.sumocfg"),
-    "disconnected": os.path.join("scenarios", "removed_connections.sumocfg")
+    "disconnected": os.path.join("scenarios", "Ingolstadt", "simulation", "removed_connections.sumocfg")
 }
 scenario = "Ingolstadt"
 
@@ -24,20 +24,22 @@ group_finding_time = 180        # max time in sec that is waited to build a larg
 lateral_resolution = 0.7        # divides the lanes into x meter wide strips, necessary for bicycles to be able to pass vehicles on the right side of the road. 0.7 allows normal bicycles (width 0.65) to pass
 alternative_edge_radius = 300   # radius in meter around the from-junction when looking for an alternative edge for vehicle to uam pedestrian conversion
 uam_hub_count = "NULL"
+conversion_vClasses = ['passenger', 'private', 'motorcycle', 'moped', 'evehicle', 'hov']  # list of vClasses eligible for conversion to uam/mm users
 
 #--- Micromobility settings ---#
-escooter_lane_change_duration = 100             # number of seconds the escooter stays on the selected lane
-escooter_lane_find_frequency = 10               # every x seconds escooter find their most comfortable lane, should be a multiple of step_length
+escooter_lane_change_duration = 10              # number of seconds the escooter stays on the selected lane
+escooter_lane_find_frequency = 12               # every x seconds escooter find their most comfortable lane, should be a multiple of step_length; ; should be higher than escooter_lane_change_duration
 escooter_sidewalk_occupancy_threshold = 0.033   # threshold to determine if there is a high occupancy on a sidewalk (number of pedestrians per meter) 0.033 means one ped every 30m
 escooter_road_occupancy_threshold = 0.05        # threshold to determine if there is a high occupancy on a road
 escooter_road_speed_threshold = 10              # threshold to determine if the traffic is fast moving (in m/s)
 escooter_road_vehicle_length_threshold = 7      # threshold to determine if the vehicles on the road are considered large (in meters), default vehicle is 5m
+log_escooter_ped_distance_threshold = 2         # maximum distance between any escooter and pedestrian to log the encounter
 
 #--- loop and density settings ---#
 uam_step_size = 0.1         # default step size for each loop iteration for the uam customer density in the simulation
 mm_step_size = 0.0          # default step size for each loop iteration for the micromobility user density in the simulation
-uam_start_density = 0.2     # default start uam customer density when looping through multiple simulations
-mm_start_density = 0.0      # default start micromobility density when looping through multiple simulations
+uam_start_density = 0.3     # default start uam customer density when looping through multiple simulations
+mm_start_density = 0.2      # default start micromobility density when looping through multiple simulations
 uam_upper_bound = 0.5       # default upper bound for the uam customer density when looping through multiple simulations
 mm_upper_bound = 0.5        # default upper bound for the micromobility user density when looping through multiple simulations
 uam_density = uam_start_density
@@ -62,7 +64,9 @@ lanechangeOutput = False        # Lane changing events with the associated motiv
 amitranOutput = False           # edge/lane-based network performance measures following the Amitran standard
 linkOutput = False              # saves debugging data for the intersection model. This data reveals how long each vehicle intends to occupy an upcoming intersection.
 personinfoOutput = False        # Save person info and container info
-emissionOutput = True           # emission values of all vehicles for every simulation step
+emissionOutput = False          # emission values of all vehicles for every simulation step
+
+escooter_ped_distance_output = True     # check for close encounters of escooters with pedestrians in every step, and log them
 
 
 
