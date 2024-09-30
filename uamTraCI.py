@@ -675,7 +675,7 @@ def generate_base_results_folder(path: str):
 # both
 def get_new_results_folder():
     data_output_path = os.path.join(config.results_folder_path,
-                                    "{}-uam{:.3f}-mm{:.3f}-{}".format(config.scenario, config.uam_density,
+                                    "{}-uam{:.3f}-{}".format(config.scenario, config.uam_density,
                                                                      
                                                                       datetime.now().strftime("%Y%m%d-%H%M%S")))
 
