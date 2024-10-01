@@ -43,8 +43,7 @@ Custom scenarios, for example ones created using `createUamHubs.py`, can be run 
 `--scenario_path <path_to_scenario>` command line option.
 
 Example command:
-``py uamTraCI.py --nogui --loop --uam_step_size 0.05 --uam_start_density 0.0 --uam_upper_bound 0.3 --scenario_path .\scenarios\manhattan\5_u
-am_hubs_manhattan.sumocfg``
+``py uamTraCI.py --nogui --loop --uam_step_size 0.05 --uam_start_density 0.0 --uam_upper_bound 0.3 --scenario_path .\scenarios\manhattan\5_uam_hubs_manhattan.sumocfg``
 
 If further adjustments to the parameters used during the simulation are desired, edit `simConfig.py` as needed.
 
