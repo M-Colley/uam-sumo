@@ -4,7 +4,7 @@
 
 - Script to automatically create Urban Air Mobility hubs
   - Given a valid sumocfg and a list of coordinates, we automatically generate UAM hubs at those coordinates
-  - All hubs are directly connected to each other, without any interaction with the normal road network
+  - All hubs are directly connected to each other, without any interaction with the standard road network
   - Each hub is reachable for pedestrians in the simulation by foot
   - We added a custom Air Taxi vehicle type, extending SUMO's taxi. Relevant parameters, such as its person capacity, maximum speed and emission class can be adjusted
   - The custom Air Taxis, called uamtaxi, automatically select the best UAM hub to return to, after delivering their customer. The hub selection parameters are also adjustable
@@ -19,7 +19,8 @@
 
 - sumo installed (requires version released on 01.08.2024 or newer, 1.20 contains a bug that was fixed later)
 - rtree installed (see requirements.txt)
-- python installed
+- [https://www.python.org/downloads/](Python) installed
+- installed sumo additions (run ``pip install -r "%PYTHONPATH%\requirements.txt" --upgrade`` under WINDOWS)
 
 ### Adding UAM hubs to network
 
