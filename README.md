@@ -18,7 +18,7 @@
 ### Prerequisites
 
 - sumo installed (requires version released on 01.08.2024 or newer, 1.20 contains a bug that was fixed later)
-- rtree installed (see requirements.txt)
+- [rtree](https://github.com/Toblerity/rtree) installed (see requirements.txt)
 - [Python](https://www.python.org/downloads) installed
 - installed sumo additions (run ``pip install -r "%PYTHONPATH%\requirements.txt" --upgrade`` under WINDOWS)
 
