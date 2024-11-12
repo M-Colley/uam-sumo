@@ -17,21 +17,21 @@
 
 ### Prerequisites
 
-- [Python](https://www.python.org/downloads) installed
-- [SUMO](https://sumo.dlr.de/docs/Downloads.php) installed (requires version 1.21 or higher)
-- [rtree](https://github.com/Toblerity/rtree) installed (see requirements.txt)
-- installed sumo additions (run ``pip install -r "%PYTHONPATH%\requirements.txt" --upgrade`` under WINDOWS)
+- Install [Python](https://www.python.org/downloads) (we recommend Python >=3.11)
+- Install [SUMO](https://sumo.dlr.de/docs/Downloads.php) from the website (version 1.21 or higher. It is usually installed under `C:\Program Files (x86)\Eclipse\Sumo\`). FOllow its default instructions.
+- Install [rtree](https://github.com/Toblerity/rtree) installed (see our `requirements.txt`)
+- Install SUMO [`tools` additions](https://sumo.dlr.de/docs/Tools/index.html) (run ``pip install -r "C:\Program Files (x86)\Eclipse\Sumo\tools\requirements.txt" --upgrade`` under WINDOWS)
 
 ### Adding UAM hubs to the network
 
-1. valid `.sumocfg` with sumo network and at least one route and additionals file specified (unzipped files)
-2. decide on UAM hub coordinates, fitting to the SUMOP network. For example, using netedit
-3. run "createUamHubs.py" with desired sumocfg-file and coordinates. For example: ` py .\createUamHubs.py <path_to_sumocfg>\sim.sumocfg 6200 2000 8500 3600 6300 5150` will create UAM hubs at (6200, 2000), (8500, 3600) and (3600, 5150). Alternatively, add `--help` for more info.
-4. new sumocfg-file with added hubs is called `<hub_count>_uam_hubs_<previous_name>.sumocfg`
+1. You must have a valid `.sumocfg` with the SUMO network and at least one route and additionals file specified (unzipped files)
+2. You require UAM hub coordinates that fit the SUMO network. For example, use `netedit`
+3. Run "createUamHubs.py" with desired sumocfg-file and coordinates. For example: ` py .\createUamHubs.py <path_to_sumocfg>\sim.sumocfg 6200 2000 8500 3600 6300 5150` will create UAM hubs at (6200, 2000), (8500, 3600) and (3600, 5150). Alternatively, add `--help` for more info.
+4. A new sumocfg-file is created with added hubs. It is called `<hub_count>_uam_hubs_<previous_name>.sumocfg`
 
 Remember that the specified coordinates should not be further apart than those specified in ``uamHubConfig.py``. Hubs are only connected when they are within the `uam_hub_connection_radius` of another UAM hub.
 
-Many UAM hub specific variables can be configured in ``uamHubConfig.py`` to adjust the creation of the UAM hubs. These changes are only applied when calling `createUamHubs.py` anew.
+Many UAM hub-specific variables can be configured in ``uamHubConfig.py`` to adjust the creation of the UAM hubs. These changes are only applied when calling `createUamHubs.py` anew.
 
 
 ### Running the simulation
