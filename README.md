@@ -24,6 +24,8 @@
 
 ### Adding UAM hubs to the network
 
+![Steps overview](/figures/create_hubs_schematic.png)
+
 1. You must have a valid `.sumocfg` with the SUMO network and at least one route and additionals file specified (unzipped files)
 2. You require UAM hub coordinates that fit the SUMO network. For example, use `netedit`
 3. Run "createUamHubs.py" with desired sumocfg-file and coordinates. For example: ` py .\createUamHubs.py <path_to_sumocfg>\sim.sumocfg 6200 2000 8500 3600 6300 5150` will create UAM hubs at (6200, 2000), (8500, 3600) and (3600, 5150). Alternatively, add `--help` for more info.
