@@ -23,7 +23,7 @@ setup(
   long_description_content_type='text/markdown',
   author = 'Mark Colley',                   # Type in your name
   author_email = 'mark.colley@yahoo.de',      # Type in your E-Mail
-  url = 'm-colley.github.io',   # Provide either the link to your github or to your website
+  url = 'm-colley.github.io',   # Provide either the link to your GitHub or your website
   download_url = '',   # I explain this later on
   keywords = ['simulation', 'urban air mobility', 'llm'],   # Keywords that define your package best
   install_requires=[            # I get to this in a second
@@ -35,8 +35,9 @@ setup(
     'Intended Audience :: Developers',      # Define that your audience is developers
     'Topic :: Software Development :: Build Tools',
     'License :: OSI Approved :: MIT License',   # Again, pick a license
-    'Programming Language :: Python :: 3',      #Specify which python versions that you want to support
+    'Programming Language :: Python :: 3',      #Specify which Python versions that you want to support
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
   ],
 )
