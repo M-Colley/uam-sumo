@@ -130,4 +130,23 @@ After every simulation, a new folder inside the 'results' directory will be crea
   - pedCount (amount of customers aboard the Air Taxi): integer
   - customerIds: list(string)
   - uamHubCount (amount of UAM hubs identified in the simulation): integer
-  
+
+
+# Citation
+
+```
+@inproceedings{10.5555/3721488.3721610,
+author = {Colley, Mark and Czymmeck, Julian and Jansen, Pascal and Meinhardt, Luca-Maxim and Ebel, Patrick and Rukzio, Enrico},
+title = {UAM-SUMO: Simulacra of Urban Air Mobility Using SUMO To Study Large-Scale Effects},
+year = {2025},
+publisher = {IEEE Press},
+abstract = {Urban Air Mobility (UAM) emerges as a potential solution to urban congestion. However, as it lacks integration with existing transportation systems, methods to study its impact are necessary. Traditional empirical approaches are insufficient to study large-scale effects in this not-yet-real context. We developed UAM-SUMO, an extension of the SUMO simulation platform, to simulate the impact of UAM on public transportation, particularly how air taxis affect traffic flow and mode choices. We detail the modifications to SUMO and the UAM operation parameters. We open-source our code at https://github.com/M-Colley/uam-sumo and present a proof-of-concept data collection and analysis for Ingolstadt, Germany.},
+booktitle = {Proceedings of the 2025 ACM/IEEE International Conference on Human-Robot Interaction},
+pages = {1000–1004},
+numpages = {5},
+keywords = {open source, sumo, urban air mobility},
+location = {Melbourne, Australia},
+series = {HRI '25}
+}
+```
+
