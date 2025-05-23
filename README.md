@@ -1,7 +1,6 @@
 # UAM-SUMO: Simulacra of Urban Air Mobility Using [SUMO](https://www.eclipse.org/sumo/) To Study Large-Scale Effects 
 Short Paper at [HRI '25](https://humanrobotinteraction.org/2025/), doi: [10.5555/3721488.3721610](https://dl.acm.org/doi/10.5555/3721488.3721610)
 
-[![DOI:10.5555/3721488.3721610](https://zenodo.org/badge/DOI/10.5555/3721488.3721610.svg)](https://doi.org/10.5555/3721488.3721610)
 
 
 [Mark Colley](https://scholar.google.de/citations?user=Kt5I7wYAAAAJ&hl=de&oi=ao), Julian Czymmeck, [Pascal Jansen](https://scholar.google.de/citations?user=cR1_0-EAAAAJ&hl=en), [Luca-Maxim Meinhardt](https://scholar.google.de/citations?user=PD-594QAAAAJ&hl=de&oi=ao), [Patrick Ebel](https://scholar.google.de/citations?hl=de&user=nRW4gQQAAAAJ), [Enrico Rukzio](https://scholar.google.de/citations?user=LEu4D5gAAAAJ&hl=de&oi=ao)
