@@ -36,10 +36,15 @@ def get_orthogonal_points(centre: (float, float), point: (float, float), distanc
     dx = point[0] - centre[0]
     dy = point[1] - centre[1]
 
-    # normalize the direction vector
-    length = math.sqrt(dx ** 2 + dy ** 2)
-    dx /= length
-    dy /= length
+    # normalize the direction vector. If the centre and the point are identical, fall back to a
+    # default orientation to avoid dividing by zero (this happens when only a single hub
+    # coordinate is provided).
+    length = math.hypot(dx, dy)
+    if length == 0:
+        dx, dy = 1.0, 0.0
+    else:
+        dx /= length
+        dy /= length
 
     # calculate the orthogonal vector
     orthogonal_dx = -dy
