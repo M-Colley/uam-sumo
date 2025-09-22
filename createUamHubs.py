@@ -23,6 +23,9 @@ def get_options():
 
 
 def get_centre(coordinates: list[(float, float)]) -> (float, float):
+    if not coordinates:
+        raise ValueError("coordinates must contain at least one point")
+
     xs = [p[0] for p in coordinates]
     ys = [p[1] for p in coordinates]
     centre = (sum(xs) / len(coordinates), sum(ys) / len(coordinates))
@@ -38,6 +41,8 @@ def get_orthogonal_points(centre: (float, float), point: (float, float), distanc
 
     # normalize the direction vector
     length = math.sqrt(dx ** 2 + dy ** 2)
+    if length == 0:
+        raise ValueError("centre and point must not be identical")
     dx /= length
     dy /= length
 
