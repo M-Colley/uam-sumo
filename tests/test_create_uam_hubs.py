@@ -8,7 +8,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-from createUamHubs import get_orthogonal_points
+import pytest
+
+from createUamHubs import get_centre, get_orthogonal_points
 
 
 def test_get_orthogonal_points_handles_single_coordinate():
@@ -36,4 +38,9 @@ def test_get_orthogonal_points_distance_preserved():
     # Both points should be exactly `distance` away from the original point.
     assert math.isclose(math.dist(first, point), distance)
     assert math.isclose(math.dist(second, point), distance)
+
+
+def test_get_centre_rejects_empty_coordinate_list():
+    with pytest.raises(ValueError):
+        get_centre([])
 
