@@ -23,6 +23,9 @@ def get_options():
 
 
 def get_centre(coordinates: list[(float, float)]) -> (float, float):
+    if not coordinates:
+        raise ValueError("At least one coordinate is required to calculate the centre.")
+
     xs = [p[0] for p in coordinates]
     ys = [p[1] for p in coordinates]
     centre = (sum(xs) / len(coordinates), sum(ys) / len(coordinates))
