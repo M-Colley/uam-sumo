@@ -1,2 +1,2 @@
 rtree
-sumolib>=1.24.0
+sumolib>=1.25.0
